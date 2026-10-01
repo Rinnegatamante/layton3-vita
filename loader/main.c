@@ -122,7 +122,7 @@ int ret1(void) {
 	return 1;
 }
 
-int clock_gettime(int clk_ik, struct timespec *t) {
+static int clock_gettime_hook(int clk_ik, struct timespec *t) {
 	struct timeval now;
 	int rv = gettimeofday(&now, NULL);
 	if (rv)
@@ -350,15 +350,15 @@ int BitFlag_SetByOffset_hook(void *this, int offset, int val, char *name) {
 void patch_game(void) {
 	BitFlag_SetByOffset = (void *)so_symbol(&layton_mod, "_ZN14__lt3CSaveData23BitFlagData_SetByOffsetEibPKc");
 	
-	hook_addr(so_symbol(&layton_mod, "_Z11FS_LoadFilePcPKcii"), FS_LoadFile);
-	hook_addr(so_symbol(&layton_mod, "_Z12FS_GetLengthPKc"), FS_GetLength);
-	hook_addr(so_symbol(&layton_mod, "_Z9MO_Renderv"), ret0);
-	
-	gdata_hook = hook_addr(so_symbol(&layton_mod, "_ZN12lt3CGameData12__InitializeEv"), GameData_Initialize);
-	rotate_hook = hook_addr(so_symbol(&layton_mod, "_Z16GX_SetViewRotateii"), GX_SetViewRotate);
-	bitflag_hook = hook_addr(BitFlag_SetByOffset, BitFlag_SetByOffset_hook);
-	
-	hook_addr(so_symbol(&layton_mod, "criErr_Notify"), criErr_Notify);
+	hook_addr(so_symbol(&layton_mod, "_Z11FS_LoadFilePcPKcii"), (uintptr_t)FS_LoadFile);
+	hook_addr(so_symbol(&layton_mod, "_Z12FS_GetLengthPKc"), (uintptr_t)FS_GetLength);
+	hook_addr(so_symbol(&layton_mod, "_Z9MO_Renderv"), (uintptr_t)ret0);
+
+	gdata_hook = hook_addr(so_symbol(&layton_mod, "_ZN12lt3CGameData12__InitializeEv"), (uintptr_t)GameData_Initialize);
+	rotate_hook = hook_addr(so_symbol(&layton_mod, "_Z16GX_SetViewRotateii"), (uintptr_t)GX_SetViewRotate);
+	bitflag_hook = hook_addr((uintptr_t)BitFlag_SetByOffset, (uintptr_t)BitFlag_SetByOffset_hook);
+
+	hook_addr(so_symbol(&layton_mod, "criErr_Notify"), (uintptr_t)criErr_Notify);
 	//hook_addr(layton_mod.text_base + 0x000C0D58, printf);
 	//hook_addr(so_symbol(&layton_mod, "_Z9OS_PrintfPKcz"), printf);
 }
@@ -430,7 +430,7 @@ void *sceClibMemset2(void *dst, SceSize len, int ch) {
   return sceClibMemset(dst, ch, len);
 }
 
-char *patched_frag = {
+const GLchar *patched_frag = {
 	"uniform sampler2D texture;uniform vec4 color;varying vec2 vary_uv;void main(){ gl_FragColor = texture2D(texture, vary_uv) * color; }"
 };
 
@@ -661,7 +661,7 @@ static so_default_dynlib default_dynlib[] = {
 	{ "ceilf", (uintptr_t)&ceilf },
 	{ "clearerr", (uintptr_t)&clearerr },
 	{ "clock", (uintptr_t)&clock },
-	{ "clock_gettime", (uintptr_t)&clock_gettime },
+	{ "clock_gettime", (uintptr_t)&clock_gettime_hook },
 	{ "close", (uintptr_t)&close },
 	{ "cos", (uintptr_t)&cos },
 	{ "cosf", (uintptr_t)&cosf },
@@ -1015,7 +1015,7 @@ void *CallStaticObjectMethodV(void *env, void *obj, int methodID, uintptr_t *arg
 	switch (methodID) {
 	case GL_LoadPNG:
 		delete_next = 1;
-		buf = stbi_load_from_memory(args[0], array_size, &w, &h, NULL, 4);
+		buf = stbi_load_from_memory((const stbi_uc *)args[0], array_size, &w, &h, NULL, 4);
 		src = buf;
 		for (int i = 0; i < w * h; i++) {
 			uint8_t tmp = src[0];
@@ -1154,7 +1154,7 @@ uint8_t close_movie = 0;
 void CallVoidMethodV(void *env, void *obj, int methodID, uintptr_t *args) {
 	switch (methodID) {
 	case UI_StartEditText:
-		init_ime_dialog("", args[0]);
+		init_ime_dialog("", (const char *)args[0]);
 		has_edit_text = 1;
 		break;
 	case MO_PauseMovie:
@@ -1255,7 +1255,7 @@ void setup_2d_draw_rotated(float *bg_attributes, float x, float y, float x2, flo
 	bg_indices[3] = 3;
 	vglIndexPointerMapped(bg_indices);
 	
-	vglDrawObjects(GL_TRIANGLE_STRIP, 4, GL_TRUE);
+	vglDrawObjects(GL_TRIANGLE_STRIP, 4);
 	
 	if (depth_test_state)
 		glEnable(GL_DEPTH_TEST);
@@ -1313,7 +1313,7 @@ void setup_2d_draw(float *bg_attributes, float x, float y, float x2, float y2) {
 	bg_indices[3] = 3;
 	vglIndexPointerMapped(bg_indices);
 	
-	vglDrawObjects(GL_TRIANGLE_STRIP, 4, GL_TRUE);
+	vglDrawObjects(GL_TRIANGLE_STRIP, 4);
 	
 	if (depth_test_state)
 		glEnable(GL_DEPTH_TEST);

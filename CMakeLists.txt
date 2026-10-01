@@ -10,6 +10,9 @@ endif()
 
 project(layton C CXX)
 include("${VITASDK}/share/vita.cmake" REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(sndfile REQUIRED IMPORTED_TARGET sndfile)
+pkg_check_modules(vorbisfile REQUIRED IMPORTED_TARGET vorbisfile)
 set(VITA_APP_NAME "Professor Layton: Lost Future HD")
 set(VITA_TITLEID  "LAYTON003")
 set(VITA_VERSION  "01.00")
@@ -25,20 +28,16 @@ add_executable(layton
   loader/player.c
 )
 
+set_target_properties(layton PROPERTIES LINKER_LANGUAGE CXX)
+
 target_link_libraries(layton
   -Wl,--whole-archive pthread -Wl,--no-whole-archive
+  -Wl,--start-group
+  PkgConfig::sndfile
+  PkgConfig::vorbisfile
   m
   z
-  stdc++
-  vorbis
-  vorbisfile
   OpenSLES
-  sndfile
-  FLAC
-  vorbisfile
-  vorbisenc
-  vorbis
-  ogg
   vitaGL
   vitashark
   soloud
@@ -59,13 +58,13 @@ target_link_libraries(layton
   SceRazorCapture_stub
   SceFios2_stub
   SceGxm_stub
-  SceLibcBridge_stub
   SceShaccCg_stub
   SceSysmodule_stub
   ScePower_stub
   SceTouch_stub
   SceVshBridge_stub
   SceMotion_stub
+  -Wl,--end-group
 )
 
 vita_create_self(eboot.bin layton UNSAFE)
@@ -83,3 +82,7 @@ add_custom_target(copy
   COMMAND cp eboot.bin D:/app/${VITA_TITLEID}/eboot.bin
   DEPENDS eboot.bin
 )
+
+set_property(SOURCE loader/so_util.c APPEND PROPERTY COMPILE_OPTIONS -Wno-error=return-mismatch -Wno-error=incompatible-pointer-types)
+
+set_property(SOURCE loader/main.c APPEND PROPERTY COMPILE_OPTIONS -std=gnu17)
